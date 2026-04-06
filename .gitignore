@@ -1,0 +1,28 @@
+# data and outputs
+data/*
+!data/README.md
+runs/
+checkpoints/
+outputs/
+reports/*.csv
+
+# model artifacts
+*.pt
+*.pth
+*.bin
+*.ckpt
+*.safetensors
+
+# notebooks
+.ipynb_checkpoints/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# env
+.env
+.DS_Store
