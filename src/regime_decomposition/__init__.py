@@ -3,6 +3,7 @@
 __all__ = [
     "config",
     "data",
+    "eda",
     "features",
     "svd_pca",
     "visualization",

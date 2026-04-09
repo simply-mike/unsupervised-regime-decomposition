@@ -1,0 +1,5 @@
+dataset,start,end,rows,columns,missing_cells,missing_pct
+raw_market_data,2000-01-03,2026-05-01,6622,30,9855,0.049607369374811236
+returns_matrix,2004-11-19,2026-05-01,5395,5,0,0.0
+feature_matrix,2005-02-15,2026-05-01,5336,32,0,0.0
+pca_scores,2004-11-19,2026-05-01,5395,5,0,0.0
