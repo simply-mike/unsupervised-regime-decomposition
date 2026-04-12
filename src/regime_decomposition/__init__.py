@@ -2,6 +2,7 @@
 
 __all__ = [
     "config",
+    "clustering",
     "data",
     "eda",
     "features",
