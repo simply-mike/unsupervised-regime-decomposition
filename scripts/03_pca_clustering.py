@@ -101,8 +101,20 @@ def main() -> None:
     ).to_csv(table_dir / "step3_hierarchical_sanity_check.csv", index=False)
 
     plot_kmeans_model_selection(result.model_selection, figure_dir / "kmeans_model_selection.png")
-    plot_regime_scatter(panel, result.labels, result.cluster_summary, figure_dir / "pc1_pc2_regime_scatter.png")
-    plot_spy_regime_timeline(panel, result.labels, result.cluster_summary, figure_dir / "spy_regime_timeline.png")
+    plot_regime_scatter(
+        panel,
+        result.labels,
+        result.cluster_summary,
+        figure_dir / "pc1_pc2_regime_scatter.png",
+        title="PCA State Space Colored by K-Means Regime",
+    )
+    plot_spy_regime_timeline(
+        panel,
+        result.labels,
+        result.cluster_summary,
+        figure_dir / "spy_regime_timeline.png",
+        title="SPY Price With K-Means Regime Background",
+    )
     plot_return_distribution_by_regime(
         panel,
         result.labels,

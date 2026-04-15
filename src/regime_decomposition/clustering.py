@@ -195,6 +195,8 @@ def add_regime_names(summary: pd.DataFrame) -> pd.DataFrame:
     named = summary.copy()
     max_stress_regime = int(named.sort_values("stress_score").iloc[-1]["regime"])
     min_stress_regime = int(named.sort_values("stress_score").iloc[0]["regime"])
+    median_vol = named["spy_annualized_vol"].median()
+    median_vix = named["mean_vix"].median()
 
     names: dict[int, str] = {}
     for row in named.itertuples(index=False):
@@ -211,6 +213,10 @@ def add_regime_names(summary: pd.DataFrame) -> pd.DataFrame:
             base = "bear_chop"
         elif row.spy_annualized_vol > named["spy_annualized_vol"].median():
             base = "high_vol_rebound"
+        elif row.PC2_mean < 0 and row.PC3_mean < 0:
+            base = "cross_asset_risk_on"
+        elif row.spy_annualized_vol >= median_vol or row.mean_vix >= median_vix:
+            base = "risk_on_chop"
         else:
             base = "steady_risk_on"
         names[regime] = f"R{regime}_{base}"
@@ -237,7 +243,13 @@ def plot_kmeans_model_selection(model_selection: pd.DataFrame, output_path: Path
     plt.close(fig)
 
 
-def plot_regime_scatter(panel: pd.DataFrame, labels: pd.Series, cluster_summary: pd.DataFrame, output_path: Path) -> None:
+def plot_regime_scatter(
+    panel: pd.DataFrame,
+    labels: pd.Series,
+    cluster_summary: pd.DataFrame,
+    output_path: Path,
+    title: str = "PCA State Space Colored by Regime",
+) -> None:
     data = panel.reindex(labels.index).copy()
     data["regime"] = labels
     palette = _regime_palette(cluster_summary)
@@ -248,7 +260,7 @@ def plot_regime_scatter(panel: pd.DataFrame, labels: pd.Series, cluster_summary:
         ax.scatter(group["PC1"], group["PC2"], s=10, alpha=0.65, linewidths=0, color=palette[regime], label=name)
     ax.axhline(0, color="black", linewidth=0.8, alpha=0.5)
     ax.axvline(0, color="black", linewidth=0.8, alpha=0.5)
-    ax.set_title("PCA State Space Colored by K-Means Regime")
+    ax.set_title(title)
     ax.set_xlabel("PC1")
     ax.set_ylabel("PC2")
     ax.legend(loc="best", fontsize=8, markerscale=2)
@@ -263,6 +275,7 @@ def plot_spy_regime_timeline(
     labels: pd.Series,
     cluster_summary: pd.DataFrame,
     output_path: Path,
+    title: str = "SPY Price With Regime Background",
 ) -> None:
     data = panel.reindex(labels.index).copy()
     data["regime"] = labels
@@ -273,7 +286,7 @@ def plot_spy_regime_timeline(
     for regime, start, end in _regime_segments(data["regime"]):
         ax.axvspan(start, end, color=palette[regime], alpha=0.18, linewidth=0, zorder=0)
     ax.set_yscale("log")
-    ax.set_title("SPY Price With K-Means Regime Background")
+    ax.set_title(title)
     ax.set_ylabel("SPY close, log scale")
     ax.set_xlabel("")
     handles = [

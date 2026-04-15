@@ -6,6 +6,7 @@ __all__ = [
     "data",
     "eda",
     "features",
+    "gmm",
     "svd_pca",
     "visualization",
 ]
