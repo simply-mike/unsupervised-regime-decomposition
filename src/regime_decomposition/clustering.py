@@ -137,14 +137,14 @@ def summarize_cluster_behavior(panel: pd.DataFrame, labels: pd.Series, label_nam
     for label, group in data.groupby(label_name, sort=True):
         spy_ret = group["spy_ret"].dropna()
         ann_vol = spy_ret.std() * np.sqrt(252)
-        ann_return = np.expm1(spy_ret.mean() * 252)
+        conditional_ann_return = np.expm1(spy_ret.mean() * 252)
         rows.append(
             {
                 label_name: int(label),
                 "count": int(len(group)),
                 "pct_obs": float(len(group) / len(data)),
                 "spy_mean_daily_return": float(spy_ret.mean()),
-                "spy_annualized_return": float(ann_return),
+                "spy_conditional_annualized_return": float(conditional_ann_return),
                 "spy_annualized_vol": float(ann_vol),
                 "spy_hit_rate": float((spy_ret > 0).mean()),
                 "avg_spy_drawdown": float(group["spy_drawdown"].mean()),

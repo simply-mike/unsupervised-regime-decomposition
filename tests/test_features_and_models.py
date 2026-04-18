@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+from regime_decomposition.clustering import build_clustering_matrix, fit_kmeans_regimes
+from regime_decomposition.features import build_feature_matrix, build_returns_matrix
+from regime_decomposition.gmm import fit_gmm_regimes
+from regime_decomposition.svd_pca import run_svd_pca, summarize_pc_interpretation
+
+
+def test_feature_builders_create_clean_return_and_feature_matrices() -> None:
+    market_data = _synthetic_market_data(periods=140)
+
+    returns = build_returns_matrix(market_data)
+    features = build_feature_matrix(market_data)
+
+    assert returns.shape[1] == 5
+    assert not returns.isna().any().any()
+    assert "vix_close" in features.columns
+    assert "SPY_rv_20d" in features.columns
+    assert "SPY_volume_z_60d" in features.columns
+    assert np.isfinite(features.to_numpy()).all()
+
+
+def test_svd_pca_outputs_have_consistent_shapes_and_interpretation_columns() -> None:
+    market_data = _synthetic_market_data(periods=120)
+    returns = build_returns_matrix(market_data)
+
+    result = run_svd_pca(returns)
+    interpretation = summarize_pc_interpretation(result, n_components=3)
+
+    assert result.component_scores.shape == returns.shape
+    assert result.component_loadings.shape == (returns.shape[1], returns.shape[1])
+    assert np.isclose(result.explained_variance_ratio.sum(), 1.0)
+    assert {"top_positive_loadings", "top_negative_loadings"}.issubset(interpretation.columns)
+
+
+def test_kmeans_and_gmm_regime_outputs_are_aligned_and_probabilistic() -> None:
+    panel = _synthetic_eda_panel()
+    model_matrix = build_clustering_matrix(panel)
+
+    kmeans = fit_kmeans_regimes(panel=panel, model_matrix=model_matrix, selected_k=3, k_values=range(2, 5))
+    gmm = fit_gmm_regimes(
+        panel=panel,
+        model_matrix=model_matrix,
+        selected_components=3,
+        n_components_values=range(2, 5),
+    )
+
+    assert kmeans.labels.index.equals(model_matrix.index)
+    assert gmm.labels.index.equals(model_matrix.index)
+    assert gmm.probabilities.index.equals(model_matrix.index)
+    assert np.allclose(gmm.probabilities.sum(axis=1), 1.0)
+    assert "spy_conditional_annualized_return" in kmeans.cluster_summary.columns
+    assert "avg_max_probability" in gmm.regime_summary.columns
+
+
+def _synthetic_market_data(periods: int = 120) -> pd.DataFrame:
+    rng = np.random.default_rng(7)
+    dates = pd.bdate_range("2020-01-01", periods=periods)
+    tickers = ("SPY", "QQQ", "IWM", "TLT", "GLD", "^VIX")
+    frames: dict[tuple[str, str], np.ndarray] = {}
+
+    for ticker in tickers:
+        drift = 0.0002 if ticker != "^VIX" else 0.0
+        vol = 0.01 if ticker != "^VIX" else 0.03
+        close = 100 * np.exp(np.cumsum(rng.normal(drift, vol, size=periods)))
+        if ticker == "^VIX":
+            close = np.clip(20 + np.cumsum(rng.normal(0.0, 0.4, size=periods)), 10, 80)
+        volume = rng.integers(1_000_000, 10_000_000, size=periods).astype(float)
+        frames[(ticker, "Close")] = close
+        frames[(ticker, "Volume")] = volume
+
+    columns = pd.MultiIndex.from_tuples(frames.keys())
+    return pd.DataFrame(frames, index=dates, columns=columns)
+
+
+def _synthetic_eda_panel() -> pd.DataFrame:
+    rng = np.random.default_rng(11)
+    dates = pd.bdate_range("2021-01-01", periods=180)
+    states = np.repeat([0, 1, 2], repeats=60)
+    spy_ret = np.select(
+        [states == 0, states == 1, states == 2],
+        [
+            rng.normal(0.0006, 0.004, len(dates)),
+            rng.normal(0.0001, 0.010, len(dates)),
+            rng.normal(-0.0009, 0.020, len(dates)),
+        ],
+    )
+    spy_close = 100 * np.exp(np.cumsum(spy_ret))
+    panel = pd.DataFrame(
+        {
+            "spy_close": spy_close,
+            "spy_ret": spy_ret,
+            "SPY_rv_20d": np.select([states == 0, states == 1, states == 2], [0.08, 0.16, 0.35]),
+            "SPY_rv_60d": np.select([states == 0, states == 1, states == 2], [0.09, 0.17, 0.32]),
+            "vix_close": np.select([states == 0, states == 1, states == 2], [12.0, 20.0, 38.0]),
+            "vix_log_change": rng.normal(0.0, 0.02, len(dates)),
+            "PC1": np.select([states == 0, states == 1, states == 2], [0.4, 0.0, -0.7])
+            + rng.normal(0, 0.05, len(dates)),
+            "PC2": np.select([states == 0, states == 1, states == 2], [0.2, -0.2, -0.4])
+            + rng.normal(0, 0.05, len(dates)),
+            "PC3": np.select([states == 0, states == 1, states == 2], [0.1, -0.1, 0.0])
+            + rng.normal(0, 0.05, len(dates)),
+        },
+        index=dates,
+    )
+    panel["spy_cum_log_ret"] = panel["spy_ret"].cumsum()
+    panel["spy_drawdown"] = panel["spy_close"].div(panel["spy_close"].cummax()).sub(1.0)
+    panel.index.name = "date"
+    return panel

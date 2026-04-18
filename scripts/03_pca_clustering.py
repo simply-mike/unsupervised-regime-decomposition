@@ -135,7 +135,7 @@ def main() -> None:
         "count",
         "pct_obs",
         "spy_mean_daily_return",
-        "spy_annualized_return",
+        "spy_conditional_annualized_return",
         "spy_annualized_vol",
         "mean_vix",
         "PC1_mean",

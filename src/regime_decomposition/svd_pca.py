@@ -85,16 +85,22 @@ def summarize_pc_interpretation(result: SvdPcaResult, n_components: int = 3) -> 
     rows = []
     for pc in result.component_loadings.columns[:n_components]:
         loadings = result.component_loadings[pc].sort_values(key=np.abs, ascending=False)
-        top_positive = result.component_loadings[pc].sort_values(ascending=False).head(3)
-        top_negative = result.component_loadings[pc].sort_values(ascending=True).head(3)
+        positive_loadings = result.component_loadings[pc].loc[lambda values: values > 0].sort_values(ascending=False)
+        negative_loadings = result.component_loadings[pc].loc[lambda values: values < 0].sort_values(ascending=True)
         rows.append(
             {
                 "component": pc,
                 "explained_variance": result.explained_variance_ratio.loc[pc],
                 "dominant_asset_abs_loading": loadings.index[0],
                 "dominant_abs_loading": loadings.iloc[0],
-                "top_positive": ", ".join(f"{idx}:{val:.2f}" for idx, val in top_positive.items()),
-                "top_negative": ", ".join(f"{idx}:{val:.2f}" for idx, val in top_negative.items()),
+                "top_positive_loadings": _format_loadings(positive_loadings.head(3)),
+                "top_negative_loadings": _format_loadings(negative_loadings.head(3)),
             }
         )
     return pd.DataFrame(rows)
+
+
+def _format_loadings(loadings: pd.Series) -> str:
+    if loadings.empty:
+        return "none"
+    return ", ".join(f"{idx}:{val:.2f}" for idx, val in loadings.items())
