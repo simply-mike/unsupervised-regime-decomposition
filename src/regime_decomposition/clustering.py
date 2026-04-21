@@ -205,13 +205,19 @@ def add_regime_names(summary: pd.DataFrame) -> pd.DataFrame:
             base = "calm_bull"
         elif regime == max_stress_regime and row.spy_mean_daily_return < 0:
             base = "high_vol_bear"
-        elif row.PC2_mean < 0 and row.PC3_mean < 0 and row.spy_mean_daily_return < 0:
+        elif (
+            (row.mean_vix >= 25 or row.spy_annualized_vol >= 0.20)
+            and row.spy_mean_daily_return < 0.0005
+            and (row.PC2_mean < 0 or row.PC3_mean < 0)
+        ):
             base = "macro_stress"
+        elif row.PC2_mean < 0 and row.PC3_mean < 0 and row.spy_mean_daily_return < 0:
+            base = "bear_chop"
         elif row.spy_mean_daily_return < 0 and row.spy_annualized_vol > named["spy_annualized_vol"].median():
             base = "volatile_bear"
         elif row.spy_mean_daily_return < 0:
             base = "bear_chop"
-        elif row.spy_annualized_vol > named["spy_annualized_vol"].median():
+        elif row.spy_annualized_vol > named["spy_annualized_vol"].median() and row.spy_mean_daily_return > 0.001:
             base = "high_vol_rebound"
         elif row.PC2_mean < 0 and row.PC3_mean < 0:
             base = "cross_asset_risk_on"

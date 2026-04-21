@@ -1,0 +1,9 @@
+window,label,regime,regime_name,count,pct_window
+gfc_2008,Global Financial Crisis,1,R1_steady_risk_on,16,0.0449438202247191
+gfc_2008,Global Financial Crisis,2,R2_risk_on_chop,207,0.5814606741573034
+gfc_2008,Global Financial Crisis,3,R3_high_vol_bear,133,0.37359550561797755
+covid_2020,COVID Crash,1,R1_steady_risk_on,3,0.125
+covid_2020,COVID Crash,2,R2_risk_on_chop,3,0.125
+covid_2020,COVID Crash,3,R3_high_vol_bear,18,0.75
+rates_2022,Rates / Inflation Bear Market,2,R2_risk_on_chop,115,0.5867346938775511
+rates_2022,Rates / Inflation Bear Market,3,R3_high_vol_bear,81,0.413265306122449

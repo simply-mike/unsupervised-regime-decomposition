@@ -6,6 +6,7 @@ import pandas as pd
 from regime_decomposition.clustering import build_clustering_matrix, fit_kmeans_regimes
 from regime_decomposition.features import build_feature_matrix, build_returns_matrix
 from regime_decomposition.gmm import fit_gmm_regimes
+from regime_decomposition.hmm import fit_hmm_regimes
 from regime_decomposition.svd_pca import run_svd_pca, summarize_pc_interpretation
 
 
@@ -54,6 +55,26 @@ def test_kmeans_and_gmm_regime_outputs_are_aligned_and_probabilistic() -> None:
     assert np.allclose(gmm.probabilities.sum(axis=1), 1.0)
     assert "spy_conditional_annualized_return" in kmeans.cluster_summary.columns
     assert "avg_max_probability" in gmm.regime_summary.columns
+
+
+def test_hmm_outputs_include_persistent_state_diagnostics() -> None:
+    panel = _synthetic_eda_panel()
+    model_matrix = build_clustering_matrix(panel)
+
+    hmm = fit_hmm_regimes(
+        panel=panel,
+        model_matrix=model_matrix,
+        selected_states=3,
+        n_states_values=range(2, 4),
+        n_restarts=2,
+    )
+
+    assert hmm.labels.index.equals(model_matrix.index)
+    assert hmm.probabilities.index.equals(model_matrix.index)
+    assert np.allclose(hmm.probabilities.sum(axis=1), 1.0)
+    assert np.allclose(hmm.transition_matrix.sum(axis=1), 1.0)
+    assert (hmm.expected_durations["expected_duration_days"] > 0).all()
+    assert "avg_max_state_probability" in hmm.regime_summary.columns
 
 
 def _synthetic_market_data(periods: int = 120) -> pd.DataFrame:

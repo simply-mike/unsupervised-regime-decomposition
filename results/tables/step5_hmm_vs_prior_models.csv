@@ -1,0 +1,3 @@
+comparison,adjusted_rand,n_aligned_observations
+hmm_vs_kmeans,0.14661448685173797,5336
+hmm_vs_gmm,0.49891211455796614,5336
