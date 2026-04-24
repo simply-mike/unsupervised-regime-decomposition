@@ -10,4 +10,5 @@ __all__ = [
     "hmm",
     "svd_pca",
     "visualization",
+    "walk_forward",
 ]

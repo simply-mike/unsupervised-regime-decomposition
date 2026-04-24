@@ -1,0 +1,9 @@
+window,label,regime,regime_name,mean_probability
+covid_2020,COVID Crash,0,R0_calm_bull,0.00012054282290716908
+covid_2020,COVID Crash,1,R1_steady_risk_on,0.12479698140629601
+covid_2020,COVID Crash,2,R2_risk_on_chop,0.12448111360385739
+covid_2020,COVID Crash,3,R3_macro_stress,0.7506013621669393
+rates_2022,Rates / Inflation Bear Market,0,R0_calm_bull,9.387140873944201e-08
+rates_2022,Rates / Inflation Bear Market,1,R1_steady_risk_on,0.04268102252185129
+rates_2022,Rates / Inflation Bear Market,2,R2_risk_on_chop,0.6426448179116805
+rates_2022,Rates / Inflation Bear Market,3,R3_macro_stress,0.3146740656950595

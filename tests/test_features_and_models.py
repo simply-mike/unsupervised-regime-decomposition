@@ -8,6 +8,7 @@ from regime_decomposition.features import build_feature_matrix, build_returns_ma
 from regime_decomposition.gmm import fit_gmm_regimes
 from regime_decomposition.hmm import fit_hmm_regimes
 from regime_decomposition.svd_pca import run_svd_pca, summarize_pc_interpretation
+from regime_decomposition.walk_forward import run_walk_forward_hmm
 
 
 def test_feature_builders_create_clean_return_and_feature_matrices() -> None:
@@ -75,6 +76,27 @@ def test_hmm_outputs_include_persistent_state_diagnostics() -> None:
     assert np.allclose(hmm.transition_matrix.sum(axis=1), 1.0)
     assert (hmm.expected_durations["expected_duration_days"] > 0).all()
     assert "avg_max_state_probability" in hmm.regime_summary.columns
+
+
+def test_walk_forward_hmm_outputs_oos_filtered_probabilities() -> None:
+    panel = _synthetic_eda_panel()
+    model_matrix = build_clustering_matrix(panel)
+
+    result = run_walk_forward_hmm(
+        panel=panel,
+        model_matrix=model_matrix,
+        n_states=3,
+        min_train_size=90,
+        refit_frequency=30,
+        test_size=30,
+        n_restarts=1,
+    )
+
+    assert len(result.labels) == len(model_matrix) - 90
+    assert result.labels.index.equals(result.probabilities.index)
+    assert np.allclose(result.probabilities.sum(axis=1), 1.0)
+    assert not result.probabilities.index.duplicated().any()
+    assert result.diagnostics["train_size"].is_monotonic_increasing
 
 
 def _synthetic_market_data(periods: int = 120) -> pd.DataFrame:
