@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from regime_decomposition.backtest import build_default_exposure_map, run_regime_backtests, run_strategy_backtest
 from regime_decomposition.clustering import build_clustering_matrix, fit_kmeans_regimes
 from regime_decomposition.features import build_feature_matrix, build_returns_matrix
 from regime_decomposition.gmm import fit_gmm_regimes
@@ -97,6 +98,52 @@ def test_walk_forward_hmm_outputs_oos_filtered_probabilities() -> None:
     assert np.allclose(result.probabilities.sum(axis=1), 1.0)
     assert not result.probabilities.index.duplicated().any()
     assert result.diagnostics["train_size"].is_monotonic_increasing
+
+
+def test_strategy_backtest_lags_signals_and_charges_turnover_costs() -> None:
+    dates = pd.bdate_range("2022-01-03", periods=4)
+    returns = pd.Series(np.log1p([0.01, 0.02, -0.01, 0.03]), index=dates)
+    target = pd.Series([1.0, 0.0, 1.0, 1.0], index=dates)
+
+    result = run_strategy_backtest(
+        spy_log_returns=returns,
+        target_exposure=target,
+        strategy_name="test",
+        transaction_cost_bps=10.0,
+        signal_lag=1,
+    )
+
+    assert result["test_exposure"].tolist() == [0.0, 1.0, 0.0, 1.0]
+    assert np.isclose(result["test_turnover"].sum(), 3.0)
+    assert np.isclose(result["test_transaction_cost"].sum(), 0.003)
+    assert result["test_return"].iloc[0] == 0.0
+
+
+def test_regime_backtests_return_aligned_summary_and_probability_scaled_exposure() -> None:
+    panel = _synthetic_eda_panel().iloc[:90].copy()
+    panel["walk_forward_hmm_state"] = np.tile([0, 1, 2], 30)
+    probabilities = pd.DataFrame(
+        {
+            "regime_0": (panel["walk_forward_hmm_state"] == 0).astype(float),
+            "regime_1": (panel["walk_forward_hmm_state"] == 1).astype(float),
+            "regime_2": (panel["walk_forward_hmm_state"] == 2).astype(float),
+        },
+        index=panel.index,
+    )
+    exposure_map = build_default_exposure_map(n_regimes=3)
+
+    result = run_regime_backtests(
+        panel=panel,
+        probabilities=probabilities,
+        exposure_map=exposure_map,
+        transaction_cost_bps=1.0,
+        signal_lag=1,
+    )
+
+    assert result.daily_results.index.equals(panel.index)
+    assert set(result.summary["strategy"]) == {"buy_and_hold", "hard_regime_filter", "probability_scaled"}
+    assert np.isclose(result.exposure_map["target_exposure"].sum(), 1.5)
+    assert result.daily_results["probability_scaled_exposure"].between(0.0, 1.0).all()
 
 
 def _synthetic_market_data(periods: int = 120) -> pd.DataFrame:
