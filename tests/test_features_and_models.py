@@ -8,6 +8,8 @@ from regime_decomposition.clustering import build_clustering_matrix, fit_kmeans_
 from regime_decomposition.features import build_feature_matrix, build_returns_matrix
 from regime_decomposition.gmm import fit_gmm_regimes
 from regime_decomposition.hmm import fit_hmm_regimes
+from regime_decomposition.eda import CrisisWindow
+from regime_decomposition.robustness import build_exposure_scenarios, summarize_stress_period_performance
 from regime_decomposition.svd_pca import run_svd_pca, summarize_pc_interpretation
 from regime_decomposition.walk_forward import run_walk_forward_hmm
 
@@ -144,6 +146,37 @@ def test_regime_backtests_return_aligned_summary_and_probability_scaled_exposure
     assert set(result.summary["strategy"]) == {"buy_and_hold", "hard_regime_filter", "probability_scaled"}
     assert np.isclose(result.exposure_map["target_exposure"].sum(), 1.5)
     assert result.daily_results["probability_scaled_exposure"].between(0.0, 1.0).all()
+
+
+def test_robustness_helpers_build_scenarios_and_recompute_window_returns() -> None:
+    panel = _synthetic_eda_panel().iloc[:40].copy()
+    panel["walk_forward_hmm_state"] = np.repeat([0, 1, 2, 3], 10)
+    probabilities = pd.DataFrame(
+        {
+            f"regime_{regime}": (panel["walk_forward_hmm_state"] == regime).astype(float)
+            for regime in range(4)
+        },
+        index=panel.index,
+    )
+    scenarios = build_exposure_scenarios(n_regimes=4)
+    result = run_regime_backtests(
+        panel=panel,
+        probabilities=probabilities,
+        exposure_map=scenarios["balanced"],
+        transaction_cost_bps=0.0,
+        signal_lag=1,
+    )
+    windows = (
+        CrisisWindow("observed", str(panel.index[5].date()), str(panel.index[20].date()), "Observed"),
+        CrisisWindow("empty", "1999-01-01", "1999-01-31", "Empty"),
+    )
+
+    stress = summarize_stress_period_performance(result.daily_results, windows)
+
+    assert set(scenarios) == {"balanced", "defensive", "aggressive", "crisis_cut"}
+    assert all(exposure.between(0.0, 1.0).all() for exposure in scenarios.values())
+    assert stress.query("window == 'observed'")["observations"].gt(0).all()
+    assert stress.query("window == 'empty'")["observations"].eq(0).all()
 
 
 def _synthetic_market_data(periods: int = 120) -> pd.DataFrame:

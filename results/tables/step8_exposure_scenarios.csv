@@ -1,0 +1,17 @@
+scenario,regime,target_exposure
+balanced,0,1.0
+balanced,1,1.0
+balanced,2,0.5
+balanced,3,0.0
+defensive,0,1.0
+defensive,1,0.75
+defensive,2,0.25
+defensive,3,0.0
+aggressive,0,1.0
+aggressive,1,1.0
+aggressive,2,0.75
+aggressive,3,0.25
+crisis_cut,0,1.0
+crisis_cut,1,0.75
+crisis_cut,2,0.0
+crisis_cut,3,0.0
