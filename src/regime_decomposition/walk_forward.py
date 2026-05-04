@@ -42,6 +42,8 @@ def run_walk_forward_hmm(
 
     if min_train_size >= len(model_matrix):
         raise ValueError("min_train_size must be smaller than the model matrix length.")
+    if refit_frequency != test_size:
+        raise ValueError("refit_frequency and test_size must match for non-overlapping walk-forward inference.")
 
     probability_frames = []
     label_frames = []

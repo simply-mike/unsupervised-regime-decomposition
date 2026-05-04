@@ -42,8 +42,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--states", type=int, default=4, help="Number of HMM states.")
     parser.add_argument("--min-train-size", type=int, default=1260, help="Initial expanding train size in days.")
-    parser.add_argument("--refit-frequency", type=int, default=63, help="Calendar index step between refits.")
-    parser.add_argument("--test-size", type=int, default=63, help="Number of OOS days inferred after each refit.")
+    parser.add_argument("--refit-frequency", type=int, default=63, help="Number of OOS trading days between refits.")
+    parser.add_argument("--test-size", type=int, default=63, help="Number of OOS days inferred after each refit; must equal --refit-frequency.")
     parser.add_argument("--restarts", type=int, default=3, help="EM restarts per refit.")
     parser.add_argument(
         "--features",

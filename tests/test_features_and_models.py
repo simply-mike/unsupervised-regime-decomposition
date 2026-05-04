@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from regime_decomposition.backtest import build_default_exposure_map, run_regime_backtests, run_strategy_backtest
 from regime_decomposition.clustering import build_clustering_matrix, fit_kmeans_regimes
@@ -102,6 +103,22 @@ def test_walk_forward_hmm_outputs_oos_filtered_probabilities() -> None:
     assert result.diagnostics["train_size"].is_monotonic_increasing
 
 
+def test_walk_forward_hmm_rejects_overlapping_oos_blocks() -> None:
+    panel = _synthetic_eda_panel()
+    model_matrix = build_clustering_matrix(panel)
+
+    with pytest.raises(ValueError, match="non-overlapping"):
+        run_walk_forward_hmm(
+            panel=panel,
+            model_matrix=model_matrix,
+            n_states=3,
+            min_train_size=90,
+            refit_frequency=10,
+            test_size=30,
+            n_restarts=1,
+        )
+
+
 def test_strategy_backtest_lags_signals_and_charges_turnover_costs() -> None:
     dates = pd.bdate_range("2022-01-03", periods=4)
     returns = pd.Series(np.log1p([0.01, 0.02, -0.01, 0.03]), index=dates)
@@ -177,6 +194,14 @@ def test_robustness_helpers_build_scenarios_and_recompute_window_returns() -> No
     assert all(exposure.between(0.0, 1.0).all() for exposure in scenarios.values())
     assert stress.query("window == 'observed'")["observations"].gt(0).all()
     assert stress.query("window == 'empty'")["observations"].eq(0).all()
+
+
+def test_exposure_scenario_fallback_keeps_defensive_below_balanced() -> None:
+    scenarios = build_exposure_scenarios(n_regimes=5)
+
+    assert set(scenarios) == {"balanced", "defensive", "aggressive", "crisis_cut"}
+    assert (scenarios["defensive"] <= scenarios["balanced"]).all()
+    assert (scenarios["aggressive"] >= scenarios["balanced"]).all()
 
 
 def _synthetic_market_data(periods: int = 120) -> pd.DataFrame:

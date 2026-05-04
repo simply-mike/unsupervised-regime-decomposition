@@ -8,8 +8,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from regime_decomposition.backtest import TRADING_DAYS_PER_YEAR, run_regime_backtests
+from regime_decomposition.backtest import run_regime_backtests
 from regime_decomposition.eda import CrisisWindow
+from regime_decomposition.metrics import summarize_return_series
 
 
 @dataclass(frozen=True)
@@ -42,8 +43,9 @@ def build_exposure_scenarios(n_regimes: int) -> dict[str, pd.Series]:
         balanced = np.linspace(1.0, 0.0, n_regimes)
         scenario_values = {
             "balanced": balanced,
-            "defensive": np.sqrt(balanced),
+            "defensive": balanced**1.5,
             "aggressive": np.maximum(balanced, 0.25),
+            "crisis_cut": np.where(balanced <= 0.5, 0.0, balanced),
         }
 
     scenarios: dict[str, pd.Series] = {}
@@ -105,17 +107,12 @@ def summarize_stress_period_performance(
                 continue
 
             returns = window_data[f"{strategy}_return"].dropna()
-            exposure = window_data[f"{strategy}_exposure"].dropna()
-            turnover = window_data[f"{strategy}_turnover"].dropna()
-            transaction_cost = window_data[f"{strategy}_transaction_cost"].dropna()
-            equity = (1.0 + returns).cumprod()
-            drawdown = equity.div(equity.cummax()).sub(1.0)
-            years = len(returns) / TRADING_DAYS_PER_YEAR
-
-            total_return = float(equity.iloc[-1] - 1.0)
-            annualized_return = float(equity.iloc[-1] ** (1.0 / years) - 1.0) if years > 0 and equity.iloc[-1] > 0 else np.nan
-            annualized_vol = float(returns.std(ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR))
-            sharpe = float(returns.mean() / returns.std(ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR)) if returns.std(ddof=1) else np.nan
+            metrics = summarize_return_series(
+                returns=returns,
+                exposure=window_data[f"{strategy}_exposure"],
+                turnover=window_data[f"{strategy}_turnover"],
+                transaction_cost=window_data[f"{strategy}_transaction_cost"],
+            )
 
             rows.append(
                 {
@@ -126,15 +123,7 @@ def summarize_stress_period_performance(
                     "observed_start": window_data.index.min().date(),
                     "observed_end": window_data.index.max().date(),
                     "strategy": strategy,
-                    "observations": int(len(returns)),
-                    "total_return": total_return,
-                    "annualized_return": annualized_return,
-                    "annualized_vol": annualized_vol,
-                    "sharpe": sharpe,
-                    "max_drawdown": float(drawdown.min()),
-                    "avg_exposure": float(exposure.mean()),
-                    "total_turnover": float(turnover.sum()),
-                    "total_transaction_cost": float(transaction_cost.sum()),
+                    **metrics,
                 }
             )
     return pd.DataFrame(rows)
@@ -196,7 +185,11 @@ def _empty_window_row(window: CrisisWindow, strategy: str) -> dict[str, object]:
         "annualized_vol": np.nan,
         "sharpe": np.nan,
         "max_drawdown": np.nan,
+        "calmar": np.nan,
+        "hit_rate": np.nan,
         "avg_exposure": np.nan,
+        "max_exposure": np.nan,
+        "avg_daily_turnover": np.nan,
         "total_turnover": np.nan,
         "total_transaction_cost": np.nan,
     }

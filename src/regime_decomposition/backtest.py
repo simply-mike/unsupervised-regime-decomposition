@@ -7,8 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-
-TRADING_DAYS_PER_YEAR = 252
+from regime_decomposition.metrics import compute_drawdown, summarize_return_series
 
 
 @dataclass(frozen=True)
@@ -171,46 +170,42 @@ def run_strategy_backtest(
 
 def summarize_backtest(daily_results: pd.DataFrame, strategies: list[str]) -> pd.DataFrame:
     rows = []
-    n_obs = len(daily_results)
-    years = n_obs / TRADING_DAYS_PER_YEAR
 
     for strategy in strategies:
-        returns = daily_results[f"{strategy}_return"].dropna()
-        equity = daily_results[f"{strategy}_equity"].dropna()
-        drawdown = daily_results[f"{strategy}_drawdown"].dropna()
-        exposure = daily_results[f"{strategy}_exposure"].dropna()
-        turnover = daily_results[f"{strategy}_turnover"].dropna()
-        transaction_cost = daily_results[f"{strategy}_transaction_cost"].dropna()
-
-        total_return = float(equity.iloc[-1] - 1.0)
-        annualized_return = float(equity.iloc[-1] ** (1.0 / years) - 1.0) if equity.iloc[-1] > 0 else np.nan
-        annualized_vol = float(returns.std(ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR))
-        sharpe = float(returns.mean() / returns.std(ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR)) if returns.std(ddof=1) else np.nan
-        max_drawdown = float(drawdown.min())
-        calmar = float(annualized_return / abs(max_drawdown)) if max_drawdown < 0 else np.nan
-
-        rows.append(
+        metrics = summarize_return_series(
+            returns=daily_results[f"{strategy}_return"],
+            exposure=daily_results[f"{strategy}_exposure"],
+            turnover=daily_results[f"{strategy}_turnover"],
+            transaction_cost=daily_results[f"{strategy}_transaction_cost"],
+        )
+        metrics.update(
             {
                 "strategy": strategy,
                 "start": daily_results.index.min().date(),
                 "end": daily_results.index.max().date(),
-                "observations": int(n_obs),
-                "total_return": total_return,
-                "annualized_return": annualized_return,
-                "annualized_vol": annualized_vol,
-                "sharpe": sharpe,
-                "max_drawdown": max_drawdown,
-                "calmar": calmar,
-                "hit_rate": float((returns > 0).mean()),
-                "avg_exposure": float(exposure.mean()),
-                "max_exposure": float(exposure.max()),
-                "avg_daily_turnover": float(turnover.mean()),
-                "total_turnover": float(turnover.sum()),
-                "total_transaction_cost": float(transaction_cost.sum()),
             }
         )
+        rows.append(metrics)
 
-    return pd.DataFrame(rows)
+    columns = [
+        "strategy",
+        "start",
+        "end",
+        "observations",
+        "total_return",
+        "annualized_return",
+        "annualized_vol",
+        "sharpe",
+        "max_drawdown",
+        "calmar",
+        "hit_rate",
+        "avg_exposure",
+        "max_exposure",
+        "avg_daily_turnover",
+        "total_turnover",
+        "total_transaction_cost",
+    ]
+    return pd.DataFrame(rows).loc[:, columns]
 
 
 def compute_yearly_returns(daily_results: pd.DataFrame, strategies: list[str]) -> pd.DataFrame:
@@ -221,10 +216,6 @@ def compute_yearly_returns(daily_results: pd.DataFrame, strategies: list[str]) -
             row[strategy] = float((1.0 + group[f"{strategy}_return"]).prod() - 1.0)
         rows.append(row)
     return pd.DataFrame(rows)
-
-
-def compute_drawdown(equity: pd.Series) -> pd.Series:
-    return equity.div(equity.cummax()).sub(1.0)
 
 
 def plot_equity_curves(daily_results: pd.DataFrame, output_path: Path) -> None:
